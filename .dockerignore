@@ -1,0 +1,11 @@
+.git
+.local
+.agents
+.env
+.env.*
+node_modules
+**/node_modules
+**/dist
+**/target
+coverage
+attached_assets

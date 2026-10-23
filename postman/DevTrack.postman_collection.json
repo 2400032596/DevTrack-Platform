@@ -1,0 +1,153 @@
+{
+  "info": {
+    "_postman_id": "1a7d4519-37dc-46ef-b4cc-d4022f604ad9",
+    "name": "DevTrack API",
+    "description": "Authentication, CRUD, validation, unauthenticated, and ownership-oriented API examples. Postman stores the HttpOnly Set-Cookie response in its cookie jar; do not export real credentials.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"name\":\"DevTrack Demo\",\"email\":\"{{email}}\",\"password\":\"{{password}}\"}" },
+            "url": "{{baseUrl}}/auth/register"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('account created', () => pm.response.to.have.status(201));", "pm.test('response omits password', () => pm.expect(pm.response.text()).not.to.include('password'));"] } }]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"email\":\"{{email}}\",\"password\":\"{{password}}\"}" },
+            "url": "{{baseUrl}}/auth/login"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('login succeeded', () => pm.response.to.have.status(200));", "pm.test('sets an HttpOnly access cookie', () => pm.expect(pm.response.headers.get('Set-Cookie')).to.include('HttpOnly'));"] } }]
+        },
+        {
+          "name": "Current user",
+          "request": { "method": "GET", "url": "{{baseUrl}}/auth/me" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('current account returned', () => pm.response.to.have.status(200));"] } }]
+        },
+        {
+          "name": "Logout",
+          "request": { "method": "POST", "url": "{{baseUrl}}/auth/logout" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('signed out', () => pm.response.to.have.status(204));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Problems",
+      "item": [
+        {
+          "name": "List with filters",
+          "request": { "method": "GET", "url": "{{baseUrl}}/problems?page=0&size=10&difficulty=EASY&status=TODO&sort=createdAt&direction=desc" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('paged list returned', () => pm.response.to.have.status(200));", "pm.test('pagination envelope exists', () => pm.expect(pm.response.json()).to.have.property('content'));"] } }]
+        },
+        {
+          "name": "Create problem",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"title\":\"Two Sum\",\"topic\":\"Arrays\",\"difficulty\":\"EASY\",\"platform\":\"LeetCode\",\"problemUrl\":\"https://leetcode.com/problems/two-sum/\",\"status\":\"TODO\",\"notes\":\"Review hash-map approach\"}" },
+            "url": "{{baseUrl}}/problems"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('problem created', () => pm.response.to.have.status(201));", "pm.environment.set('problemId', pm.response.json().id);"] } }]
+        },
+        {
+          "name": "Validation failure — missing fields",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"title\":\"\"}" },
+            "url": "{{baseUrl}}/problems"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('validation error returned', () => pm.response.to.have.status(400));", "pm.test('field errors are included', () => pm.expect(pm.response.json()).to.have.property('fieldErrors'));"] } }]
+        },
+        {
+          "name": "Get problem",
+          "request": { "method": "GET", "url": "{{baseUrl}}/problems/{{problemId}}" }
+        },
+        {
+          "name": "Update problem",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"title\":\"Two Sum\",\"topic\":\"Arrays\",\"difficulty\":\"EASY\",\"platform\":\"LeetCode\",\"status\":\"SOLVED\"}" },
+            "url": "{{baseUrl}}/problems/{{problemId}}"
+          }
+        },
+        {
+          "name": "Delete problem",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/problems/{{problemId}}" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('problem deleted', () => pm.response.to.have.status(204));"] } }]
+        }
+      ]
+    },
+    {
+      "name": "Projects and skills",
+      "item": [
+        {
+          "name": "Create project",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"title\":\"Portfolio Tracker\",\"description\":\"A personal project\",\"technologies\":[\"React\",\"Spring Boot\"],\"status\":\"IN_PROGRESS\",\"repositoryUrl\":\"https://github.com/example/portfolio\"}" },
+            "url": "{{baseUrl}}/projects"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('project created', () => pm.response.to.have.status(201));", "pm.environment.set('projectId', pm.response.json().id);"] } }]
+        },
+        {
+          "name": "List projects",
+          "request": { "method": "GET", "url": "{{baseUrl}}/projects?page=0&size=10&sort=createdAt&direction=desc" }
+        },
+        {
+          "name": "Create skill",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\"name\":\"Java\",\"category\":\"Programming languages\",\"proficiencyLevel\":2,\"targetLevel\":4}" },
+            "url": "{{baseUrl}}/skills"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('skill created', () => pm.response.to.have.status(201));", "pm.environment.set('skillId', pm.response.json().id);"] } }]
+        },
+        {
+          "name": "Dashboard summary",
+          "request": { "method": "GET", "url": "{{baseUrl}}/dashboard/summary" }
+        },
+        {
+          "name": "DSA analytics",
+          "request": { "method": "GET", "url": "{{baseUrl}}/analytics/dsa" }
+        },
+        {
+          "name": "Activity analytics",
+          "request": { "method": "GET", "url": "{{baseUrl}}/analytics/activity?days=30" }
+        }
+      ]
+    },
+    {
+      "name": "Negative cases",
+      "item": [
+        {
+          "name": "Unauthenticated protected endpoint",
+          "request": { "method": "GET", "url": "{{baseUrl}}/dashboard/summary" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('request is unauthorized', () => pm.response.to.have.status(401));"] } }]
+        },
+        {
+          "name": "Cross-user ownership check",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Cookie", "value": "DEVTRACK_ACCESS={{otherUserAccessToken}}", "description": "Set an access token for a second test account, then request a record ID created by the first account." }],
+            "url": "{{baseUrl}}/problems/{{problemId}}"
+          },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('foreign record is not disclosed', () => pm.response.to.have.status(404));"] } }]
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "DevTrack"
+description = "A developer career and progress tracking platform for managing coding practice, projects, skills, learning goals, and personal progress."
+version = "1.0.0"
+id = "artifacts/devtrack"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20557
+
+[services.development]
+run = "pnpm --filter @workspace/devtrack run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/devtrack", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/devtrack/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20557"
+BASE_PATH = "/"

@@ -2,21 +2,25 @@ openapi: 3.1.0
 info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
-  version: 0.1.0
-  description: API specification
+  version: 1.0.0
+  description: DevTrack REST API for secure developer career and progress tracking.
 servers:
   - url: /api
-    description: Base API path
+    description: API server base path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: dashboard
+  - name: problems
+  - name: projects
+  - name: skills
+  - name: analytics
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,7 +28,456 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /v1/auth/register:
+    post:
+      operationId: register
+      tags: [auth]
+      summary: Create a user account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterInput"
+      responses:
+        "201":
+          description: Account created and signed in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /v1/auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      summary: Sign in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Signed in; access token is set as a secure HttpOnly cookie
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      summary: Sign out and invalidate the session
+      security:
+        - sessionCookie: []
+      responses:
+        "204":
+          description: Signed out
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/auth/me:
+    get:
+      operationId: getCurrentUser
+      tags: [auth]
+      summary: Get the signed-in user
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthUser"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get current user's dashboard summary
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Summary calculated from the user's records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/problems:
+    get:
+      operationId: listProblems
+      tags: [problems]
+      summary: Search and paginate DSA problems
+      security:
+        - sessionCookie: []
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 0, default: 0 } }
+        - { in: query, name: size, schema: { type: integer, minimum: 1, maximum: 100, default: 10 } }
+        - { in: query, name: search, schema: { type: string } }
+        - { in: query, name: topic, schema: { type: string } }
+        - { in: query, name: difficulty, schema: { $ref: "#/components/schemas/Difficulty" } }
+        - { in: query, name: status, schema: { $ref: "#/components/schemas/ProblemStatus" } }
+        - { in: query, name: sort, schema: { type: string, enum: [createdAt, solvedAt, title], default: createdAt } }
+        - { in: query, name: direction, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        "200":
+          description: Paged problems
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProblemPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createProblem
+      tags: [problems]
+      summary: Add a DSA problem
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProblemInput"
+      responses:
+        "201":
+          description: Created problem
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/problems/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getProblem
+      tags: [problems]
+      summary: Get a DSA problem
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Problem
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      operationId: updateProblem
+      tags: [problems]
+      summary: Update a DSA problem
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProblemInput"
+      responses:
+        "200":
+          description: Updated problem
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Problem"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      operationId: deleteProblem
+      tags: [problems]
+      summary: Delete a DSA problem
+      security:
+        - sessionCookie: []
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: Search and paginate projects
+      security:
+        - sessionCookie: []
+      parameters:
+        - { in: query, name: page, schema: { type: integer, minimum: 0, default: 0 } }
+        - { in: query, name: size, schema: { type: integer, minimum: 1, maximum: 100, default: 10 } }
+        - { in: query, name: search, schema: { type: string } }
+        - { in: query, name: status, schema: { $ref: "#/components/schemas/ProjectStatus" } }
+        - { in: query, name: sort, schema: { type: string, enum: [createdAt, startDate, targetDate, title], default: createdAt } }
+        - { in: query, name: direction, schema: { type: string, enum: [asc, desc], default: desc } }
+      responses:
+        "200":
+          description: Paged projects
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectPage"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Add a project
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/projects/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get a project
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    put:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update a project
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete a project
+      security:
+        - sessionCookie: []
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/skills:
+    get:
+      operationId: listSkills
+      tags: [skills]
+      summary: List and filter skills
+      security:
+        - sessionCookie: []
+      parameters:
+        - { in: query, name: category, schema: { type: string } }
+        - { in: query, name: search, schema: { type: string } }
+        - { in: query, name: sort, schema: { type: string, enum: [name, category, proficiencyLevel, updatedAt], default: name } }
+        - { in: query, name: direction, schema: { type: string, enum: [asc, desc], default: asc } }
+      responses:
+        "200":
+          description: Skills
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Skill"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      operationId: createSkill
+      tags: [skills]
+      summary: Add a skill
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SkillInput"
+      responses:
+        "201":
+          description: Created skill
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Skill"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/skills/{id}:
+    parameters:
+      - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+    put:
+      operationId: updateSkill
+      tags: [skills]
+      summary: Update a skill
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SkillInput"
+      responses:
+        "200":
+          description: Updated skill
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Skill"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      operationId: deleteSkill
+      tags: [skills]
+      summary: Delete a skill
+      security:
+        - sessionCookie: []
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/analytics/dsa:
+    get:
+      operationId: getDsaAnalytics
+      tags: [analytics]
+      summary: Get DSA progress analytics
+      security:
+        - sessionCookie: []
+      responses:
+        "200":
+          description: Analytics derived from tracked problems
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DsaAnalytics"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+  /v1/analytics/activity:
+    get:
+      operationId: getActivityAnalytics
+      tags: [analytics]
+      summary: Get recent activity totals
+      security:
+        - sessionCookie: []
+      parameters:
+        - { in: query, name: days, schema: { type: integer, minimum: 7, maximum: 365, default: 30 } }
+      responses:
+        "200":
+          description: Daily activity derived from the user's activity log
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ActivityDay"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: DEVTRACK_ACCESS
+  responses:
+    BadRequest:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Unauthorized:
+      description: Authentication is required or invalid
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
+    Conflict:
+      description: Resource conflicts with an existing record
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ApiError"
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +486,244 @@ components:
           type: string
       required:
         - status
+    ApiError:
+      type: object
+      properties:
+        status: { type: integer }
+        error: { type: string }
+        message: { type: string }
+        timestamp: { type: string, format: date-time }
+        fieldErrors:
+          type: object
+          additionalProperties: { type: string }
+      required: [status, error, message, timestamp]
+    AuthUser:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        createdAt: { type: string, format: date-time }
+      required: [id, name, email, createdAt]
+    RegisterInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 80 }
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 10, maxLength: 72 }
+      required: [name, email, password]
+    LoginInput:
+      type: object
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 1, maxLength: 72 }
+      required: [email, password]
+    Difficulty:
+      type: string
+      enum: [EASY, MEDIUM, HARD]
+    ProblemStatus:
+      type: string
+      enum: [TODO, IN_PROGRESS, SOLVED]
+    ProjectStatus:
+      type: string
+      enum: [PLANNED, IN_PROGRESS, COMPLETED]
+    Problem:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        topic: { type: string }
+        difficulty: { $ref: "#/components/schemas/Difficulty" }
+        platform: { type: string }
+        problemUrl: { type: ["string", "null"], format: uri }
+        status: { $ref: "#/components/schemas/ProblemStatus" }
+        notes: { type: ["string", "null"] }
+        solvedAt: { type: ["string", "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, title, topic, difficulty, platform, status, createdAt, updatedAt]
+    ProblemInput:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 200 }
+        topic: { type: string, minLength: 1, maxLength: 80 }
+        difficulty: { $ref: "#/components/schemas/Difficulty" }
+        platform: { type: string, minLength: 1, maxLength: 80 }
+        problemUrl: { type: ["string", "null"], format: uri, maxLength: 2048 }
+        status: { $ref: "#/components/schemas/ProblemStatus" }
+        notes: { type: ["string", "null"], maxLength: 5000 }
+        solvedAt: { type: ["string", "null"], format: date-time }
+      required: [title, topic, difficulty, platform, status]
+    ProblemPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items: { $ref: "#/components/schemas/Problem" }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+      required: [content, page, size, totalElements, totalPages]
+    Project:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        technologies:
+          type: array
+          items: { type: string }
+        status: { $ref: "#/components/schemas/ProjectStatus" }
+        repositoryUrl: { type: ["string", "null"], format: uri }
+        demoUrl: { type: ["string", "null"], format: uri }
+        startDate: { type: ["string", "null"], format: date }
+        targetDate: { type: ["string", "null"], format: date }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, title, technologies, status, createdAt, updatedAt]
+    ProjectInput:
+      type: object
+      properties:
+        title: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: ["string", "null"], maxLength: 4000 }
+        technologies:
+          type: array
+          items: { type: string, minLength: 1, maxLength: 40 }
+        status: { $ref: "#/components/schemas/ProjectStatus" }
+        repositoryUrl: { type: ["string", "null"], format: uri, maxLength: 2048 }
+        demoUrl: { type: ["string", "null"], format: uri, maxLength: 2048 }
+        startDate: { type: ["string", "null"], format: date }
+        targetDate: { type: ["string", "null"], format: date }
+      required: [title, technologies, status]
+    ProjectPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items: { $ref: "#/components/schemas/Project" }
+        page: { type: integer }
+        size: { type: integer }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+      required: [content, page, size, totalElements, totalPages]
+    Skill:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        category: { type: string }
+        proficiencyLevel: { type: integer, minimum: 1, maximum: 5 }
+        targetLevel: { type: integer, minimum: 1, maximum: 5 }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, name, category, proficiencyLevel, targetLevel, createdAt, updatedAt]
+    SkillInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        category: { type: string, minLength: 1, maxLength: 80 }
+        proficiencyLevel: { type: integer, minimum: 1, maximum: 5 }
+        targetLevel: { type: integer, minimum: 1, maximum: 5 }
+      required: [name, category, proficiencyLevel, targetLevel]
+    ActivityDay:
+      type: object
+      properties:
+        date: { type: string, format: date }
+        count: { type: integer, minimum: 0 }
+      required: [date, count]
+    DifficultyCount:
+      type: object
+      properties:
+        difficulty: { $ref: "#/components/schemas/Difficulty" }
+        total: { type: integer }
+        solved: { type: integer }
+      required: [difficulty, total, solved]
+    TopicProgress:
+      type: object
+      properties:
+        topic: { type: string }
+        total: { type: integer }
+        solved: { type: integer }
+      required: [topic, total, solved]
+    StatusCount:
+      type: object
+      properties:
+        status: { $ref: "#/components/schemas/ProjectStatus" }
+        total: { type: integer }
+      required: [status, total]
+    ActivityLog:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        actionType: { type: string }
+        entityType: { type: string }
+        entityId: { type: ["string", "null"], format: uuid }
+        createdAt: { type: string, format: date-time }
+      required: [id, actionType, entityType, createdAt]
+    SkillGoal:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        category: { type: string }
+        proficiencyLevel: { type: integer }
+        targetLevel: { type: integer }
+        progressPercent: { type: integer }
+      required: [id, name, category, proficiencyLevel, targetLevel, progressPercent]
+    DashboardSummary:
+      type: object
+      properties:
+        problemTotals:
+          type: object
+          properties:
+            total: { type: integer }
+            solved: { type: integer }
+            inProgress: { type: integer }
+            todo: { type: integer }
+          required: [total, solved, inProgress, todo]
+        projectTotals:
+          type: object
+          properties:
+            total: { type: integer }
+            planned: { type: integer }
+            inProgress: { type: integer }
+            completed: { type: integer }
+          required: [total, planned, inProgress, completed]
+        skillTotals:
+          type: object
+          properties:
+            total: { type: integer }
+            averageProficiency: { type: number }
+            targetMet: { type: integer }
+          required: [total, averageProficiency, targetMet]
+        weeklyActivity:
+          type: array
+          items: { $ref: "#/components/schemas/ActivityDay" }
+        difficultyDistribution:
+          type: array
+          items: { $ref: "#/components/schemas/DifficultyCount" }
+        topicProgress:
+          type: array
+          items: { $ref: "#/components/schemas/TopicProgress" }
+        projectsByStatus:
+          type: array
+          items: { $ref: "#/components/schemas/StatusCount" }
+        recentActivity:
+          type: array
+          items: { $ref: "#/components/schemas/ActivityLog" }
+        goals:
+          type: array
+          items: { $ref: "#/components/schemas/SkillGoal" }
+      required: [problemTotals, projectTotals, skillTotals, weeklyActivity, difficultyDistribution, topicProgress, projectsByStatus, recentActivity, goals]
+    DsaAnalytics:
+      type: object
+      properties:
+        difficultyDistribution:
+          type: array
+          items: { $ref: "#/components/schemas/DifficultyCount" }
+        topicProgress:
+          type: array
+          items: { $ref: "#/components/schemas/TopicProgress" }
+      required: [difficultyDistribution, topicProgress]
 

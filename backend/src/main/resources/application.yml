@@ -1,0 +1,34 @@
+server:
+  port: ${PORT:8080}
+  servlet:
+    context-path: /api
+spring:
+  application:
+    name: devtrack-api
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://${PGHOST:localhost}:${PGPORT:5432}/${PGDATABASE:devtrack}}
+    username: ${DB_USERNAME:${PGUSER:devtrack}}
+    password: ${DB_PASSWORD:${PGPASSWORD:devtrack}}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jackson:
+    default-property-inclusion: non_null
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+devtrack:
+  security:
+    jwt-secret: ${JWT_SECRET:${SESSION_SECRET:}}
+    access-token-minutes: ${ACCESS_TOKEN_MINUTES:15}
+    cookie-secure: ${COOKIE_SECURE:false}
+    cookie-same-site: ${COOKIE_SAME_SITE:Strict}
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}

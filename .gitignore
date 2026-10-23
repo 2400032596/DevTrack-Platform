@@ -53,3 +53,12 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Local secrets and generated build output
+.env
+.env.*
+!.env.example
+target/
+**/target/
+coverage/
+*.log
